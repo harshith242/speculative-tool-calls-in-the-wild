@@ -45,7 +45,15 @@ So speculation never changes what the agent sees or does. It only changes how lo
 | Wasted or extra calls | — | 0 (amplification 1.00) |
 | Failed early starts | — | 3 of 298, all the deliberate "retired ticker" trap that the real call also hits |
 
-**Primary endpoint** (pre-registered): geometric-mean ratio of agent time per task, B/A = **0.767**, 95% bootstrap CI [0.619, 0.967], sign-flip permutation p = 0.038.
+**Primary endpoint:** B/A = **0.767**, 95% CI [0.619, 0.967], p = 0.038. In plain words, the agent with sPTC took about 77% as long as without it, so it was roughly 23% faster.
+
+How to read these numbers:
+- **Primary endpoint.** Before the live runs, the spec named this one number as the test of whether sPTC works, so we could not pick a flattering metric afterwards.
+- **What is timed.** Agent time per task: time spent waiting on the model and the tools.
+- **B/A = 0.767.** For each task we divide sPTC time by baseline time (10 s vs 20 s gives 0.5), then take the geometric mean of the 18 ratios. A geometric mean treats "twice as fast" (0.5) and "twice as slow" (2.0) as cancelling out, which an ordinary average does not. So 0.767 means the typical task took 76.7% of its baseline time.
+- **95% CI [0.619, 0.967].** The range the true effect probably lies in, found by resampling the 18 tasks thousands of times (bootstrap). It spans about 38% faster to 3% faster. All of it is below 1.0, so even the cautious end says sPTC helps. It is wide because 18 tasks is a small sample.
+- **p = 0.038.** If sPTC did nothing, each task being faster or slower would be a coin flip. Randomly flipping each task's result thousands of times (sign-flip permutation) gave a speedup this large only 3.8% of the time. That is under the usual 5% threshold.
+- **Caveat.** The first live run used 10 tasks and gave B/A 0.74 with p = 0.08, which is not significant. We then added 8 tasks. Extending a run after seeing its result slightly raises the chance of a false positive, so treat p = 0.038 as borderline rather than strong.
 
 ![Live turn latency, real tools](docs/results/v2/latency_cdf.png)
 
