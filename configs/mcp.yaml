@@ -1,0 +1,29 @@
+# FastLane v2: the 3 MCP-Bench servers that passed safety + burst tests (OKX, Game Trends, NixOS); 18 frozen tasks (4 MCP-Bench, 14 reviewed synthetic).
+agent: {model: deepseek-flash, base_url: https://api.deepseek.com, api_key_env: DEEPSEEK_API_KEY,
+        options: {extra_body: {thinking: {type: disabled}}, max_tokens: 2048}, usd_per_million: {cache_hit: 0.003, cache_miss: 0.15, output: 0.60}}  # off-peak (50% off); episodes refuse to start in peak hours
+root: mcp_servers/mcp_servers
+tasks_dir: tasks_v2  # frozen task set: MCP-Bench originals + reviewed synthetic tasks
+python: .venv-mcp/bin/python
+servers:
+  OKX Exchange: {cmd: [node, build/index.js], cwd: okx-mcp}
+  Game Trends: {cmd: ["{python}", server.py], cwd: game-trends-mcp}
+  NixOS: {cmd: [.venv-mcp1/bin/python, -m, mcp_nixos.server], cwd: mcp-nixos, pool: 4, warmup: {tool: nixos_info, args: {name: bash}}}  # serial v1 server: 4 copies, each warmed (~14 s first-call setup)
+# speculation_safe whitelist, hand-checked from each tool's code (readOnlyHint is unset on every tool):
+# read-only public GETs, safe to repeat, no quota cost beyond public rate limits, no private arguments.
+safe:
+  OKX Exchange: [get_price, get_candlesticks]
+  NixOS: [nixos_search, nixos_info, nixos_channels, nixos_stats, nixos_flakes_search, nixos_flakes_stats, home_manager_search,
+          home_manager_info, home_manager_stats, home_manager_list_options, home_manager_options_by_prefix, darwin_search,
+          darwin_info, darwin_stats, darwin_list_options, darwin_options_by_prefix, nixhub_package_versions, nixhub_find_version]  # read-only search/docs
+  Game Trends: [get_all_trending_games, get_epic_free_games, get_epic_trending_games, get_steam_most_played,
+                get_steam_top_sellers, get_steam_trending_games]  # get_api_health is a self-check, never worth starting early
+split:  # fixed before any run (reviewer's stratified rule: per-structure quotas, every server in both splits, cross-server tasks separated)
+  train: ["syn_okx_01", "syn_nixos_03", "game_trends_000", "syn_nixos_05", "syn_okx_03", "okx_exchange_001", "syn_nixos_04", "syn_x_01"]
+  test: ["syn_nixos_01", "syn_okx_02", "nixos_000", "syn_game_01", "syn_nixos_06", "syn_game_02", "syn_nixos_07", "okx_exchange_000", "syn_nixos_02", "syn_x_02"]
+caps: {predictor_per_episode: 12, max_steps: 20}
+live_tasks: all  # sPTC learns nothing, so it is measured live on train and test tasks (n=18)
+live_arms: AB  # the train-tuned tau switches the predictor off (C would equal B, P would equal A); C is reported from replay
+predictor: {k: 3, min_obs: 3, min_precision: 0.6, min_avail: 3, lambda_waste: 0.5}
+budget: {baseline_usd: 0.25, live_usd: 0.5, replay_usd: 0.05, episode_usd: 0.05}  # real off-peak dollars, $0.80 in total
+paths: {runs: runs_mcp, results: results_mcp, cache: cache/llm}
+replay: {tau_grid: [0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8], history_sizes: [0, 5, 10], delay_scales: [0.25, 0.5, 1, 2, 4], exhaustive_k: [2, 4, 8]}

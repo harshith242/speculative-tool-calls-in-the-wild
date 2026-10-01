@@ -1,0 +1,37 @@
+[project]
+name = "fastlane"
+version = "0.1.0"
+description = "A live test of speculative programmatic tool calling (spec-ptc) for a code-mode agent on real MCP servers and tau2-bench"
+authors = [{ name = "harshith242", email = "v.harshith2000@gmail.com" }]
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "openai",
+    "python-dotenv",
+    "pyyaml",
+    "tqdm",
+    "audioop-lts", # tau2 imports its voice modules at package import (Python 3.13 removed audioop)
+    "websockets", # same reason
+    "tau2 @ https://github.com/sierra-research/tau2-bench/archive/5bfa7e37b36656b37dc6d022156be6563c1007f3.zip",
+    "mcp==2.2.0",
+]
+
+[project.scripts]
+fastlane = "fastlane.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.uv]
+exclude-newer = "2026-09-24T00:00:00Z"  # skip releases from the last week (supply-chain caution)
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

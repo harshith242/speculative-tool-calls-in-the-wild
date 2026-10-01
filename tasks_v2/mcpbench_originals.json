@@ -1,0 +1,108 @@
+{
+ "generation_info": {
+  "status": "completed",
+  "source": "MCP-Bench single-server tasks for OKX Exchange, Game Trends, NixOS",
+  "note": "nixos_000 revised to remove broken-tool asks; nixos_001 and game_trends_001 replaced by syn_nixos_06/07 (see synthetic.json)"
+ },
+ "server_tasks": [
+  {
+   "server_name": "Game Trends",
+   "tasks": [
+    {
+     "task_id": "game_trends_000",
+     "task_description": "You are a market analyst for an indie game publisher. Over the next 7 days, identify high-potential indie titles by cross-platform performance on Steam and the Epic Games Store. Perform the following steps:\n\n1. API HEALTH CHECK\n   • Call get_api_health.  \n   • If the Steam sub-API is unhealthy, skip direct Steam calls and use get_all_trending instead to extract Steam data.  \n   • If the Epic sub-API is unhealthy, skip direct Epic calls and use get_all_trending instead to extract Epic data.\n\n2. STEAM DATA GATHERING (or fallback)\n   a. If Steam API is healthy:\n      1) Call get_steam_trending to get the current trending games and their Steam ranking positions.\n      2) From that list, call get_steam_top_sellers and filter to only trending games whose Steam sales rank is worse (numerically greater) than 5 (i.e., trending but not top 5 sellers).\n      3) Call get_steam_most_played and intersect with the filtered list, retaining only games with a current concurrent player count of at least 5,000.\n   b. If Steam API was unhealthy, call get_all_trending once and filter its output for platform == \"Steam\" and apply the same top-sellers and player thresholds above (sales rank > 5, concurrent ≥ 5,000).\n\n3. EPIC GAMES STORE DATA GATHERING (or fallback)\n   a. If Epic API is healthy:\n      1) Call get_epic_trending to get current trending titles and their Epic ranking positions.\n      2) Call get_epic_free to get the list of free games available or upcoming within the next 7 days.\n   b. If Epic API was unhealthy, call get_all_trending once and filter its output for platform == \"Epic Games Store\" and trending status, then separately call get_epic_free for free/upcoming games as above.\n\n4. CROSS-PLATFORM ANALYSIS\n   • From the Steam filtered list and the Epic trending list, identify games present in both lists (cross-platform trending).  \n     – For each, compute average rank = (Steam trending rank + Epic trending rank) / 2.  \n     – Retain only those with average rank ≤ 10.\n   • From the Steam filtered list, identify Steam-only trending games (not in Epic trending).  \n     – For each Steam-only title, verify it is not in the Epic free/upcoming list.  \n   • From the Epic trending list, identify Epic-only trending games (not in Steam filtered list).  \n     – For each Epic-only title, check if it appears in the Epic free/upcoming list.\n\n5. OUTPUT\n   Prepare a JSON report with three arrays:\n   {\n     \"cross_platform_hits\": [ { \"name\": string, \"steam_rank\": int, \"epic_rank\": int, \"average_rank\": float } ],\n     \"steam_only_opportunities\": [ { \"name\": string, \"steam_rank\": int } ],\n     \"epic_only_opportunities\": [ { \"name\": string, \"epic_rank\": int, \"is_free_next_7_days\": boolean } ]\n   }\n\nEnsure every step is automated via the specified tools and that no external data or vague parameters are used.",
+     "fuzzy_description": "I’m working at a small indie game publisher and my boss wants me to spot any breakout titles over the next week. What I’m really after are those under-the-radar games that haven’t cracked the top five bestsellers but are still pulling in roughly 5,000 concurrent players. If any of those are buzzing on both Steam and Epic, I’d love to see their individual ranks and an averaged ranking—only if that average comes out to ten or below. For games that only pop on Steam, make sure they’re not quietly heading into any Epic free-to-play or upcoming giveaways. And for anything only trending on Epic, flag if it’s set to go free in the next seven days. Could you put together a shortlist laid out like that, with real rank numbers, player counts, and free-status notes? I really need hard data to bring back to my team, not just gut feelings.\n\nPlease ensure all findings are supported by concrete data and verifiable sources. I need specific numbers and evidence, not generalizations.",
+     "dependency_analysis": "Inherent Dependencies:\n• get_api_health must be called first to decide whether to use direct platform tools or fallback to get_all_trending.\n• get_steam_trending output feeds into get_steam_top_sellers filtering, which in turn feeds into get_steam_most_played filtering.\n• get_epic_trending and get_epic_free provide parallel Epic data streams for trending and free/upcoming games.\n• get_all_trending aggregates Steam and Epic trending as a fallback source when a sub-API is unhealthy.\n\nScenario-Based Dependencies:\n1. Decision Point A: API health results determine whether to call platform‐specific tools (get_steam_trending, get_epic_trending) or the aggregated get_all_trending.  \n2. Sequential Chains on Steam side: get_steam_trending → get_steam_top_sellers filter → get_steam_most_played filter.\n3. Parallel Execution: Once Steam filtering is complete, Epic trending (or fallback) and Epic free (or fallback) can run in parallel.  \n4. Cross-Validation: The Steam filtered list is compared against Epic trending to identify cross-platform hits; Epic free list is then used to annotate Epic-only opportunistic titles.\n5. Conditional Workflows:\n   • If API health flags sub-API as unhealthy, switch to get_all_trending and platform filter logic.  \n   • For Steam-only and Epic-only lists, additional checks against the Epic free list.\n\nCross-Server Dependencies:\n• Data from Steam endpoints influences which game names are queried or filtered in Epic endpoints.\n• If Steam or Epic endpoints fail, get_all_trending (which itself queries both servers under the hood) serves as a fallback to preserve the analysis flow.\n• Final cross-platform comparison requires harmonizing ranking fields from both servers into a common average rank metric.",
+     "distraction_servers": [
+      "Bibliomantic",
+      "Car Price Evaluator",
+      "FruityVice",
+      "Google Maps",
+      "Huge Icons",
+      "Metropolitan Museum",
+      "OKX Exchange",
+      "OpenAPI Explorer",
+      "Paper Search",
+      "Unit Converter"
+     ]
+    }
+   ]
+  },
+  {
+   "server_name": "NixOS",
+   "tasks": [
+    {
+     "task_id": "nixos_000",
+     "task_description": "Assess the viability of using “neovim” on the NixOS stable channel, including the NixOS module and nix-darwin option coverage. The agent must:\n\n1. List all available NixOS channels.\n2. Search the stable NixOS channel for “neovim” in the packages category.\n3. Fetch detailed info about the “neovim” package from the stable channel.\n4. Retrieve NixOS statistics for the stable channel.\n5. Search the stable channel's options for “programs.neovim” and then fetch detailed info on the exact enable option found (programs.neovim.enable).\n6. Retrieve overall nix-darwin statistics.\n\nProduce a consolidated report that includes:\n- NixOS channel availability and package details (version, license).\n- Channel package/option counts.\n- The NixOS module option details (type, default).\n- nix-darwin option-tree size and top categories.",
+     "fuzzy_description": "I’ve been wrestling with setting up Neovim in a truly rock-solid NixOS environment and could really use a clear snapshot of where things stand. Here’s the deal: I’m on the stable NixOS channel, but I’m not even sure which channels are still alive or where Neovim lives in each. I’d love to know which Neovim version stable actually ships and under what license, and how big stable is overall in terms of packages and options. Then there’s the module side—does “programs.neovim” show up in the NixOS option tree, and what does its enable entry look like? I also have a Mac on nix-darwin, so I’d like a sense of how big its option tree is. Basically, I need hard numbers and real metadata—channel names, package counts, versions, option paths—anything that proves this is actually supported. I can’t go forward on gut feelings alone, so whatever you find, make sure it’s backed up by concrete data.",
+     "dependency_analysis": "Inherent and scenario-based dependencies:\n\n1. nixos_channels, nixos_search(neovim), nixos_stats and darwin_stats are independent of one another and can run in parallel.\n2. nixos_info(neovim) uses the package name from the user text (confirmed by nixos_search).\n3. nixos_search(options, “programs.neovim”) -> nixos_info(type=option, name taken from the search result, e.g. programs.neovim.enable) is the only result-to-argument chain.\n4. Cross-validation: package counts from nixos_stats vs. the channel document counts reported by nixos_channels.\n5. All data flows remain within provided tools; no external APIs or files are required.",
+     "distraction_servers": [
+      "Car Price Evaluator",
+      "Context7",
+      "FruityVice",
+      "Game Trends",
+      "Google Maps",
+      "Huge Icons",
+      "Movie Recommender",
+      "National Parks",
+      "OSINT Intelligence",
+      "Scientific Computing"
+     ],
+     "fl_revised": "removed asks that need broken NixHub/flakes/Home Manager/darwin-neovim tools",
+     "fl_structure": "mixed",
+     "fl_arg_sources": [
+      "user",
+      "result"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "plan",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: nixos_channels, nixos_search neovim stable (0.11.7), nixos_info neovim (Apache-2.0, Vim), nixos_stats stable (132,549 packages / 23,216 options), nixos_search options programs.neovim -> programs.neovim.enable etc., nixos_info option programs.neovim.enable, darwin_stats (1,165 options, 21 categories)."
+    }
+   ]
+  },
+  {
+   "server_name": "OKX Exchange",
+   "tasks": [
+    {
+     "task_id": "okx_exchange_000",
+     "task_description": "You are building a crypto breakout detection report for three OKX instruments: BTC-USDT, ETH-USDT, and ADA-USDT. Perform the following steps in sequence and output a JSON summary for each instrument with fields: instrument, current_price, avg_24h_price, deviation_pct, trend_15m, volume_change_5m, breakout_signal.\n\n1. For each instrument (BTC-USDT, ETH-USDT, ADA-USDT):\n   a. Call OKX Exchange:get_price to fetch the latest price as current_price.\n   b. Call OKX Exchange:get_candlesticks with bar=\"1H\" and limit=24 to fetch the past 24 one-hour candlesticks. Compute avg_24h_price (the arithmetic mean of each candlestick’s close).\n   c. Compute deviation_pct = (current_price - avg_24h_price) / avg_24h_price × 100. If |deviation_pct| ≤ 2.0, set breakout_signal = false and skip to the next instrument; otherwise proceed.\n\n2. For each instrument where |deviation_pct| > 2.0:\n   a. Call OKX Exchange:get_candlesticks with bar=\"15m\" and limit=50 to fetch the past 50 fifteen-minute candlesticks. Compute trend_15m as “up” if the simple moving average of the last 5 closes is greater than that of the first 5 closes; otherwise “down.” If trend_15m is “down,” set breakout_signal = false and skip further analysis for this instrument.\n\n   b. For instruments with trend_15m = “up,” call OKX Exchange:get_candlesticks with bar=\"5m\" and limit=60 to fetch the past 60 five-minute candlesticks. Compute average_volume_5m over all 60 volumes, and let last_volume be the volume of the most recent candlestick. Compute volume_change_5m = (last_volume - average_volume_5m) / average_volume_5m × 100.\n\n   c. If volume_change_5m ≥ 10.0, set breakout_signal = true; otherwise set breakout_signal = false.\n\n3. Output a JSON array named \"report\" with one object per instrument containing: instrument, current_price, avg_24h_price, deviation_pct, trend_15m (or null if skipped), volume_change_5m (or null), breakout_signal.\n\nEnsure all calculations use the fetched tool outputs directly, and follow the exact procedure without requesting additional inputs.",
+     "fuzzy_description": "So, here’s the deal: I’m putting together a quick “breakout radar” for BTC-USDT, ETH-USDT, and ADA-USDT, and I really need hard numbers to back any call. What I’m wondering is:\n\n– What’s the current price vs. its average over roughly the past day?  \n– How far off is that in percentage terms?  \n– In the last 15 minutes, does it look like the coin’s on an upswing or heading down?  \n– And over the last 5 minutes, has volume shot up or tanked compared to its recent average?  \n– Finally—based on all that—are any of these really cracking out into a breakout right now?\n\nCould you pull the live data, run those calculations, and give me a concise summary (JSON, table, whatever) for each pair? I can’t walk into my team meeting with gut feels—I need real, data-driven answers. Thanks!\n\nPlease ensure all findings are supported by concrete data and verifiable sources. I need specific numbers and evidence, not generalizations.",
+     "dependency_analysis": "Inherent dependencies:\n- OKX Exchange:get_price provides current_price; OKX Exchange:get_candlesticks provides time-series of OHLCV data.\n- The 1H candlesticks output is consumed to compute avg_24h_price, which is then compared to current_price.\n\nScenario-based dependencies:\n- Decision point 1: deviation_pct > 2% triggers deeper analysis; otherwise branch exits early for that instrument.\n- The 15m candlesticks call is conditional on the first decision; its moving-average trend_15m result determines whether to proceed or exit.\n- The 5m candlesticks are fetched only if trend_15m is \"up\"; its volume analysis yields volume_change_5m and the final breakout_signal.\n\nTool chains & data flow:\n1. get_price → current_price\n2. get_candlesticks(bar=1H, limit=24) → closes[] → compute avg_24h_price\n3. Compare current_price & avg_24h_price → deviation_pct → branch\n4. If deviation ✓: get_candlesticks(bar=15m, limit=50) → closes[] → compute trend_15m → branch\n5. If trend_15m up: get_candlesticks(bar=5m, limit=60) → volumes[] → compute volume_change_5m → final decision\n\nParallel vs sequential:\n- Steps 1–3 run per instrument and can be parallelized across instruments.\n- Within each instrument, the calls are strictly sequential and conditional.\n\nCross-server dependencies:\n- Not applicable (only OKX Exchange server used).",
+     "distraction_servers": [
+      "Car Price Evaluator",
+      "Context7",
+      "Hugging Face",
+      "Medical Calculator",
+      "Metropolitan Museum",
+      "National Parks",
+      "OSINT Intelligence",
+      "Scientific Computing",
+      "Weather Data",
+      "Wikipedia"
+     ]
+    },
+    {
+     "task_id": "okx_exchange_001",
+     "task_description": "You are an AI trading-analysis agent using the OKX Exchange API. Perform the following workflow in one run:\n\n1. In parallel, fetch 1-minute candlestick data for the past 30 minutes for both BTC-USDT and ETH-USDT:\n   • Call get_candlesticks with instrument='BTC-USDT', bar='1m', limit=30\n   • Call get_candlesticks with instrument='ETH-USDT', bar='1m', limit=30\n\n2. For each instrument, compute 1-minute momentum percentage:\n   momentum1m_pct = (last_close – first_close) / first_close × 100\n\n3. If momentum1m_pct > 1.0% for an instrument, fetch its current market price:\n   • Call get_price with instrument set to that symbol\n\n4. For each instrument where you fetched a price, determine whether the current price continues the momentum direction:\n   direction_continues = (current_price – last_close) has the same sign as momentum1m_pct\n\n5. Identify which instrument has the higher absolute value of momentum1m_pct. On that top instrument, perform 5-minute candlestick analysis for the past hour:\n   • Call get_candlesticks with instrument set to top symbol, bar='5m', limit=12\n   • Compute trend5m_volatility = standard deviation of the 12 closing prices\n\n6. If trend5m_volatility > 0.5%, trigger a deeper short-term review:\n   • Call get_candlesticks with the same top instrument, bar='1m', limit=60\n   • Label this step “deep_analysis_executed”\n\n7. Produce a JSON report with an array field named “instrument_data” containing one object per symbol with these keys:\n   • instrument: 'BTC-USDT' or 'ETH-USDT'\n   • momentum1m_pct: number\n   • current_price: number (if fetched; otherwise null)\n   • direction_continues: boolean (if price fetched; otherwise null)\n   • trend5m_volatility: number (for top instrument; null for the other)\n   • deep_analysis_executed: boolean\n\nEnsure you call get_price only when momentum1m_pct > 1.0% and get the deep-dive 1m candles only when volatility > 0.5%.",
+     "fuzzy_description": "I’ve been tinkering with a quick crypto check for BTC and ETH – basically looking at the last half-hour of one-minute candles to see who’s been really moving. If either coin has jumped more than about 1% over those 30 minutes, I want to know its latest price and whether it’s still pushing in the same direction. Then, whichever one shows the bigger burst, could you peek at roughly the past hour of five-minute bars and give me a sense of how choppy its closes have been (like the % volatility)? And if that volatility turns out to be north of about 0.5%, I’d love a deeper look into the last 60 one-minute bars to see exactly what’s going on. In the end, I need a clear breakdown for each coin: the one-minute momentum %, the current price (if it qualified), a yes/no on whether it’s still trending, the five-minute volatility % for the stronger coin, and a flag saying if you did that extra minute-by-minute deep dive. I really need real numbers here – can’t just wing it in my presentation. Thanks!\n\nPlease ensure all findings are supported by concrete data and verifiable sources. I need specific numbers and evidence, not generalizations.",
+     "dependency_analysis": "Inherent tool chains:\n- get_candlesticks produces arrays of OHLCV data; this output is consumed to compute momentum and volatility.\n- get_price delivers a single numeric value used to compare against the last close from candlesticks.\n\nScenario-based dependencies:\n- Step 3 is conditional on step 2 results (momentum1m_pct > 1.0% triggers get_price).\n- Step 4 uses get_price output plus the last_close from step 1 to set direction_continues.\n- Step 5 selects the instrument with the larger absolute momentum1m_pct to feed into the next get_candlesticks call (bar='5m', limit=12).\n- Step 6 evaluates trend5m_volatility from step 5; if > 0.5%, it triggers an additional get_candlesticks call (bar='1m', limit=60) for deep analysis.\n\nParallel vs. sequential:\n- Initial 1m candlestick fetch for both instruments runs in parallel.\n- Subsequent calls for each instrument follow a sequential chain: momentum → conditional price fetch → direction check.\n- The deep volatility check for the top instrument triggers a branching sequence (5m candlesticks → conditional 1m deep dive).\n\nThis single-server (OKX Exchange) task exercises full dependency awareness: tool outputs drive conditional logic, parameters for later calls derive from earlier results, and parallel vs. sequential execution paths must be orchestrated to build the final report.",
+     "distraction_servers": [
+      "Call for Papers",
+      "DEX Paprika",
+      "FruityVice",
+      "Google Maps",
+      "Medical Calculator",
+      "NASA Data",
+      "Paper Search",
+      "Unit Converter",
+      "Weather Data",
+      "Wikipedia"
+     ]
+    }
+   ]
+  }
+ ]
+}

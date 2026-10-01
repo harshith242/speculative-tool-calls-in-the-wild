@@ -1,0 +1,287 @@
+{
+ "generation_info": {
+  "status": "completed",
+  "source": "Synthetic realistic tasks (14) for NixOS, OKX Exchange, Game Trends and cross-server combinations; written to cover a diversity table of call structure / argument source / length / intent; entities grounded by real tool calls on 2026-10-01 (live data may drift). Extra fields: fl_structure, fl_arg_sources, fl_length, fl_intent, fl_servers, fl_grounding. Review fixes applied: syn_game_01 uses working endpoints, relabels for nixos_02/x_02/okx_01/game_02, syn_nixos_06/07 added (replacing nixos_001 and game_trends_001). NixHub, Home Manager and flakes tools were broken at grounding time, so no task depends on them."
+ },
+ "server_tasks": [
+  {
+   "server_name": "NixOS",
+   "tasks": [
+    {
+     "task_id": "syn_nixos_01",
+     "task_description": "You are helping a NixOS user enable Tailscale on a machine running the stable channel. Perform the following:\n\n1. Call NixOS:nixos_search with search_type=\"options\", channel=\"stable\", a short query you derive from the service name (e.g. \"tailscale\"), and a small limit (5-10).\n2. From the returned option list, report the option that supplies the auth key (a file path) so the node connects automatically at boot, plus its type and the option that selects the tailscale package.\n\nOutput: option names with their types and one-line descriptions.",
+     "fuzzy_description": "I just installed NixOS on a little home server (stable channel, the current release) and I want it to join my Tailscale network automatically on boot without me having to run `tailscale up` by hand every time. I've heard there's a NixOS module for it but I honestly have no idea what the options are called. Can you look up what settings exist for Tailscale on stable? In particular I want the one where I can point at a file containing my auth key so it logs in by itself, and I'd like to know what type of value it expects (a plain string, a path, something else?). If there's also a setting to choose which tailscale package gets used, tell me that one too. I don't need a whole config, just the exact option names and a one-line explanation of each so I can paste them into my configuration.nix.",
+     "dependency_analysis": "Inherent Dependencies:\n- Single NixOS:nixos_search call; no downstream calls.\n\nScenario-Based Dependencies:\n- The query string (e.g. \"tailscale\") is not given verbatim by the user as a search term; the agent must derive it from the service name and choose search_type=\"options\" and channel=\"stable\".\n- No parallelism or sequencing: one call answers the request.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "single",
+     "fl_arg_sources": [
+      "user",
+      "model"
+     ],
+     "fl_length": "short",
+     "fl_intent": "lookup",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified nixos_search(query='tailscale', search_type='options', channel='stable') returns services.tailscale.authKeyFile (null or absolute path), services.tailscale.package, etc.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_02",
+     "task_description": "A user upgraded to the current stable NixOS and their build now complains about the license of terraform. Perform the following:\n\n1. Call NixOS:nixos_channels to determine which release 'stable' currently points to.\n2. Call NixOS:nixos_info (type=\"package\", channel=\"stable\") for \"terraform\" and read its version and license.\n3. If the license is not a free/open-source license, derive an open-source drop-in alternative on your own and call NixOS:nixos_search (type packages, channel stable) for it. If the license is free, stop and report.\n4. Take the best-matching package name returned by step 3 and call NixOS:nixos_info (type=\"package\", channel=\"stable\") on it.\n5. Report: stable release number, terraform version + license, the alternative's package name, version, license and homepage.",
+     "fuzzy_description": "I moved my laptop to the latest stable NixOS release and now my flake build is complaining about the license on terraform, something about it not being a free license any more. Which stable release am I on these days, and what version and license does terraform ship with there? If it really is a licensing problem, I'd like to switch to an open-source alternative that I can use the same way, and before I change my devShell I want to know that it's actually available on stable, with its version, license and homepage.",
+     "dependency_analysis": "Inherent Dependencies:\n- nixos_info(terraform) must complete before deciding whether a replacement is needed (license check).\n- The replacement search term (e.g. \"opentofu\") is model-derived, and the final nixos_info name comes from the search result.\n\nScenario-Based Dependencies:\n1. nixos_channels is independent of the terraform lookup and can run in parallel with it.\n2. Chain: nixos_info(terraform) -> license decision -> nixos_search(alternative) -> nixos_info(name from result).\n3. Conditional: if the license were free, steps 3-4 are skipped.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "mixed",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "troubleshoot",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: nixos_channels (stable=25.11), nixos_info terraform stable -> 1.14.0, Business Source License 1.1; nixos_search 'opentofu' stable -> opentofu 1.10.9 first; nixos_info opentofu -> MPL 2.0.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_03",
+     "task_description": "Compare three database packages between the stable and unstable NixOS channels before a server upgrade. Perform:\n\n1. For each package in [\"postgresql\", \"redis\", \"sqlite\"], call NixOS:nixos_info (type=\"package\") once with channel=\"stable\" and once with channel=\"unstable\" (6 independent calls).\n2. Build a table: package, stable version, unstable version, which channel is newer, license.\n3. Flag any package where the description suggests the two channels resolve to different things (e.g. a language binding vs the actual database engine) or where unstable is older than stable.",
+     "fuzzy_description": "I run a small production box on NixOS stable and I'm planning a maintenance window to upgrade the stack. I'd like to know where postgresql, redis and sqlite stand on the stable channel versus the unstable channel, so I can decide whether it's worth tracking unstable for any of them. Please give me the versions side by side for each of the three, which channel is ahead, and the license. And don't just assume unstable is always newer; I've been burned before by assuming that. If anything looks odd, like a package name that seems to point at something different from the database I actually mean on one of the channels, tell me about it. A simple table plus a couple of lines of caveats is plenty.",
+     "dependency_analysis": "Inherent Dependencies:\n- None among the six calls; each nixos_info call uses only user-provided package names and channels.\n\nScenario-Based Dependencies:\n1. All six calls can run in parallel.\n2. Post-processing (table, 'which is newer', oddity flags) depends on all six results.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "fanout",
+     "fl_arg_sources": [
+      "user"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "compare",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified all 6 calls return data: postgresql stable 18.3 vs unstable 16.13 (unstable older!); redis 8.2.3 both; sqlite stable resolves to the Haskell binding 0.5.5 while unstable is the engine 3.51.2.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_04",
+     "task_description": "Plan a nix-darwin configuration for a new Mac. The user wants four settings: Touch ID for sudo, a fast keyboard repeat rate, Finder showing all file extensions, and the Dock auto-hiding. Perform:\n\n1. Call NixOS:darwin_search with a single-token query you derive for each setting (e.g. \"touchid\", \"KeyRepeat\", \"finder\", \"dock\"), limit around 5-10. These four searches are independent.\n2. For each search, pick the matching option(s) from the results and call NixOS:darwin_info with the exact option name. (Touch ID: one option; key repeat: both KeyRepeat and InitialKeyRepeat if present; Finder: the show-all-extensions option.)\n3. If a search returns no relevant option (e.g. the \"dock\" query only returns unrelated results such as container-runner options), fall back to NixOS:darwin_options_by_prefix with the prefix \"system.defaults.dock\", locate the auto-hide option in the list, then call NixOS:darwin_info on it.\n4. Report each setting as: exact option path, description/default, and a one-line Nix snippet.",
+     "fuzzy_description": "I'm setting up a brand new MacBook with nix-darwin and I'd like to declare a handful of macOS settings in my config instead of clicking through System Settings. Four things: I want to be able to use Touch ID instead of typing my password for sudo, I want a much faster key repeat rate (and a shorter delay before repeat kicks in, if there's a setting for that), I want Finder to always show file extensions, and I want the Dock to hide itself automatically. I don't know the option names for any of these. Can you track down the exact options, tell me what each one does and what its default is, and give me a one-line snippet for each that I can drop into my darwin configuration? If something is hard to find, dig around the option tree until you do.",
+     "dependency_analysis": "Inherent Dependencies:\n- Each darwin_info call needs an exact option name taken from the corresponding search (or prefix listing) result.\n\nScenario-Based Dependencies:\n1. Four darwin_search calls are independent and can run in parallel (queries are model-derived).\n2. Per-setting chain: darwin_search -> pick option -> darwin_info; key repeat yields two info calls.\n3. Conditional fallback: the 'dock' search returns noise (docker-related gitlab-runner options), so the agent must notice and switch to darwin_options_by_prefix('system.defaults.dock') followed by darwin_info('system.defaults.dock.autohide').\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "mixed",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "long",
+     "fl_intent": "plan",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: darwin_search 'touchid' -> security.pam.services.sudo_local.touchIdAuth; 'KeyRepeat' -> NSGlobalDomain.InitialKeyRepeat/KeyRepeat; 'finder' -> system.defaults.finder.AppleShowAllExtensions first; 'dock' -> only services.gitlab-runner docker* noise; multi-word 'dock autohide' returns nothing; options_by_prefix('system.defaults.dock') lists autohide; darwin_info works for all option names.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_05",
+     "task_description": "Recommend a terminal file manager available on NixOS stable. Perform:\n\n1. Call NixOS:nixos_search with search_type=\"packages\", channel=\"stable\", a descriptive query you choose (e.g. \"terminal file manager\"), limit 5.\n2. Take the first result's package name and call NixOS:nixos_info (type=\"package\", channel=\"stable\") on it.\n3. Report its version, description, homepage and license.",
+     "fuzzy_description": "I'm tired of cd-ing around in the terminal on my NixOS machine and I'd like a terminal file manager. I'm on the stable channel. I don't have a favorite, so just see what's out there and tell me about the top pick: its exact package name so I can add it to my system packages, the version, what it does, where its homepage is and what license it uses. One solid recommendation with those details is enough, but please make sure it really exists on stable and isn't something that only shows up on unstable.",
+     "dependency_analysis": "Inherent Dependencies:\n- nixos_info needs the package name returned by nixos_search.\n\nScenario-Based Dependencies:\n1. Two-step chain: nixos_search(model-chosen query) -> nixos_info(name from top result).\n2. The choice of query text is up to the agent; different queries lead to different top results, so the second call cannot be predicted before the first returns.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "chain1",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "short",
+     "fl_intent": "lookup",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: nixos_search('terminal file manager', stable) -> walk 1.13.0 first; nixos_info walk -> MIT, github homepage. Top hit depends on the query wording, which is intentional.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_06",
+     "task_description": "Explore nix-darwin trackpad configuration. Perform:\n\n1. Call NixOS:darwin_search with a single-token query for the topic (\"trackpad\"), limit about 10.\n2. From the results, pick a system.defaults.trackpad.* option and call NixOS:darwin_info with its exact name.\n3. Take the option-group prefix from that option name (\"system.defaults.trackpad\") and call NixOS:darwin_options_by_prefix with it.\n4. From the returned list, call NixOS:darwin_info on the tap-to-click option (system.defaults.trackpad.Clicking) and the tap-to-drag option (system.defaults.trackpad.Dragging).\n5. Report each option's exact path, description and default, with a one-line Nix snippet each, and mention how many trackpad options exist in total.",
+     "fuzzy_description": "I just got a new MacBook and I'm managing it with nix-darwin. Out of the box tap-to-click is off and the trackpad feels sluggish, and I'd like to fix that in my config rather than clicking through System Settings. I have no idea what the trackpad settings are called in nix-darwin. Can you find out what's available for the trackpad, and then give me the exact option names for turning on tap-to-click and tap-to-drag, including what each does and its default value? I'd also like to know roughly how many trackpad settings there are in total, in case there are other things I should be tweaking. A line of Nix for each of the two I asked about would be perfect.",
+     "dependency_analysis": "Inherent Dependencies:\n- Strict result-to-argument chain: darwin_search yields an option name; its prefix (system.defaults.trackpad) is taken from that name and fed to darwin_options_by_prefix; the two final darwin_info calls use exact option names taken from the prefix listing.\n\nScenario-Based Dependencies:\n1. darwin_search -> darwin_info(option from result) -> darwin_options_by_prefix(prefix derived from result) -> 2x darwin_info (can run in parallel at the last hop).\n2. The search must be a single token (multi-word queries return nothing).\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "chain2plus",
+     "fl_arg_sources": [
+      "user",
+      "result"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "lookup",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: darwin_search('trackpad') -> system.defaults.trackpad.* and NSGlobalDomain trackpad options; darwin_info(system.defaults.trackpad.ActuateDetents); darwin_options_by_prefix('system.defaults.trackpad') -> 22 options incl. Clicking, Dragging; darwin_info for Clicking and Dragging return descriptions/defaults.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_nixos_07",
+     "task_description": "Troubleshoot a NixOS build failing on a package attribute that no longer exists. Perform:\n\n1. Call NixOS:nixos_info (type=\"package\", channel=\"stable\") for \"exa\"; expect a NOT_FOUND error.\n2. Search for what replaced it: call NixOS:nixos_search (packages, stable) with a query you choose. A search for the old name \"exa\" returns nothing, so derive the successor project name or a description (e.g. \"eza\" or \"ls replacement\") yourself.\n3. Take the matching package attribute from the search results and call NixOS:nixos_info (type=\"package\", channel=\"stable\") on it.\n4. Report: why the old name fails, the new attribute, its version, license and homepage.",
+     "fuzzy_description": "My nixos-rebuild is failing after I bumped my flake to the latest stable release. The error says it can't find an attribute called exa in pkgs. I have exa in my systemPackages and I alias ls to it, so I'd really like to keep the same kind of tool. What happened to it? Can you confirm it's really gone from stable, and tell me what I should be using instead, including the exact attribute name I need to put in my config, its version, license and homepage? I want to know it's definitely available on stable before I change my config and rebuild again.",
+     "dependency_analysis": "Inherent Dependencies:\n- The final nixos_info needs the attribute name returned by the search.\n\nScenario-Based Dependencies:\n1. Conditional chain: nixos_info(exa) returns NOT_FOUND -> agent must search for a replacement; searching the old name returns nothing, so the agent must invent a different query from its knowledge of the exa -> eza rename (model-computed argument) -> nixos_info(name from result).\n2. If exa had been found, the later calls would not be made.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "conditional",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "short",
+     "fl_intent": "troubleshoot",
+     "fl_servers": [
+      "NixOS"
+     ],
+     "fl_grounding": "Verified: nixos_info(exa, stable) -> NOT_FOUND; nixos_search('exa', stable) -> no packages; nixos_search('eza', stable) -> eza 0.23.4; nixos_info(eza) -> EUPL 1.2, github homepage. Realised trace 3-4 calls.",
+     "distraction_servers": []
+    }
+   ]
+  },
+  {
+   "server_name": "OKX Exchange",
+   "tasks": [
+    {
+     "task_id": "syn_okx_01",
+     "task_description": "Report BTC's daily range for the last three days using OKX Exchange. Perform:\n\n1. Call OKX Exchange:get_candlesticks with instrument=\"BTC-USDT\", a daily bar (\"1D\") and limit=3 (derive the bar size and limit from the request).\n2. For each candle report the timestamp, open, high, low, close, and the high-low range as a percentage of the open.",
+     "fuzzy_description": "Quick one. I keep a little journal of how volatile bitcoin has been and I forgot to write it down for the last few days. Can you tell me, for each of the last three days, where BTC traded against USDT at the open and close and the highest and lowest prices it hit that day? I'd also like the day's swing as a percent of the opening price, so I can see which day was the wildest. Just a small table is fine. Today's partial day counts as one of the three.",
+     "dependency_analysis": "Inherent Dependencies:\n- None; one call.\n\nScenario-Based Dependencies:\n- The agent must translate 'last three days' into bar=\"1D\" and limit=3 and map 'BTC against USDT' to the instrument id BTC-USDT; none of these literal arguments appear in the user's text.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "single",
+     "fl_arg_sources": [
+      "user",
+      "model"
+     ],
+     "fl_length": "short",
+     "fl_intent": "lookup",
+     "fl_servers": [
+      "OKX Exchange"
+     ],
+     "fl_grounding": "Verified get_candlesticks(BTC-USDT, 1D, 3) returns 3 daily candles with open/high/low/close/volume (newest first).",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_okx_02",
+     "task_description": "Compare one-week performance of five altcoins on OKX. Perform:\n\n1. For each instrument in [\"SOL-USDT\", \"AVAX-USDT\", \"DOT-USDT\", \"LINK-USDT\", \"NEAR-USDT\"] call OKX Exchange:get_price (5 independent calls).\n2. For the same five instruments call OKX Exchange:get_candlesticks with bar=\"1D\" and limit=7 (5 more independent calls; derive bar/limit from 'past week').\n3. For each coin compute: current price, close of the oldest of the 7 daily candles, 7-day % change, 7-day high/low, and where the current price sits within that range (0-100%).\n4. Rank the coins by 7-day % change and name the one nearest its weekly high.",
+     "fuzzy_description": "I hold a small bag of SOL, AVAX, DOT, LINK and NEAR and I want to know which of them has actually done best over the past week, and which is sitting closest to its weekly high versus languishing near its low. For each one I need the live price right now, how much it has moved over the last seven days in percent, and the highest and lowest it traded in that window. Then rank them from best to worst performer and tell me which one is closest to its weekly high. Everything should be priced in USDT. I'm trying to decide whether to rebalance, so please use real numbers, not rough impressions.",
+     "dependency_analysis": "Inherent Dependencies:\n- None among the ten calls; each uses only the five instrument ids from the user text.\n\nScenario-Based Dependencies:\n1. All ten calls (5 get_price + 5 get_candlesticks) can be issued in parallel.\n2. The bar size and limit for 'the past week' (1D, 7) are model-derived.\n3. Ranking and range-position math depend on all results.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "fanout",
+     "fl_arg_sources": [
+      "user",
+      "model"
+     ],
+     "fl_length": "long",
+     "fl_intent": "compare",
+     "fl_servers": [
+      "OKX Exchange"
+     ],
+     "fl_grounding": "Verified all 10 calls return data for SOL/AVAX/DOT/LINK/NEAR-USDT (get_price plus 7 daily candles each).",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_okx_03",
+     "task_description": "Troubleshoot a price-feed bot that can no longer fetch MATIC-USDT. Perform:\n\n1. Call OKX Exchange:get_price with instrument=\"MATIC-USDT\".\n2. If the call returns an error saying the instrument does not exist, reason about the rename of MATIC to POL and call OKX Exchange:get_price with instrument=\"POL-USDT\". If the first call succeeds, skip to step 4 with MATIC-USDT.\n3. If POL-USDT works, report that the instrument was renamed.\n4. Call OKX Exchange:get_candlesticks for the working instrument with bar=\"1H\" and limit=24 and report the 24-hour high, low and the first and last close to confirm the feed is live and continuous.",
+     "fuzzy_description": "My little price-ticker bot for Polygon has started throwing errors this morning when it asks the exchange for MATIC against USDT. It's been working for ages, so I suspect something changed on the exchange side rather than my code. Can you check what's going on? If MATIC-USDT really isn't there, figure out what the token is listed under now and confirm that I can get a live price for it. Once you've found a working market, also pull the last day of hourly data and tell me the 24-hour high and low and how much it moved, so I know the new feed is real data and not a stub. Please tell me exactly which instrument id I should switch the bot to.",
+     "dependency_analysis": "Inherent Dependencies:\n- The second get_price call is only made if the first returns an 'instrument doesn't exist' error.\n- The candlestick call uses whichever instrument id succeeded.\n\nScenario-Based Dependencies:\n1. Conditional branch on error: get_price(MATIC-USDT) fails -> agent must invent POL-USDT from its knowledge of the token rename; the replacement id is not in the user text or any tool result.\n2. Chain: working instrument id -> get_candlesticks(1H, 24), where bar/limit are model-derived from 'last day of hourly data'.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "conditional",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "short",
+     "fl_intent": "troubleshoot",
+     "fl_servers": [
+      "OKX Exchange"
+     ],
+     "fl_grounding": "Verified: get_price(MATIC-USDT) -> error 'Instrument ID ... doesn't exist'; get_price(POL-USDT) -> valid ticker; get_candlesticks(POL-USDT,1H,24) -> 24 hourly candles.",
+     "distraction_servers": []
+    }
+   ]
+  },
+  {
+   "server_name": "Game Trends",
+   "tasks": [
+    {
+     "task_id": "syn_game_01",
+     "task_description": "Find overlap between what is trending, selling and being given away. Perform:\n\n1. Call Game Trends:get_steam_trending_games.\n2. Call Game Trends:get_steam_top_sellers.\n3. Call Game Trends:get_epic_free_games.\n(All three are independent; alternatively Game Trends:get_all_trending_games returns all three datasets in one call.)\n4. Normalize game names and report every title that appears on two or more of: Steam trending, Steam top sellers, Epic free-now/upcoming-free. Include the Steam sales rank where one exists and the Epic promotion end date for free titles.\n5. If nothing overlaps across all three, report the top 5 Steam top sellers and the Epic free games separately.",
+     "fuzzy_description": "I write a weekly PC gaming newsletter and I'm trying to work out which games are getting attention in more than one way at the moment, instead of just topping a single chart. What I'm curious about is whether any title is both being pushed as trending on Steam and selling well there, or whether anything Epic is giving away is also a big deal on Steam. For anything that overlaps, tell me where it shows up and what its sales rank is if it has one, and for the Epic giveaways when they run out. If there turns out to be no overlap at all, just give me the five best-selling Steam games and the current Epic freebies so I still have something to write about.",
+     "dependency_analysis": "Inherent Dependencies:\n- None; all endpoints take no arguments.\n\nScenario-Based Dependencies:\n1. The three list calls can run in parallel (get_all_trending_games can replace them with one call).\n2. Overlap analysis depends on all three responses; the fallback summary (top 5 sellers + free games) is produced only if the overlap is empty.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "fanout",
+     "fl_arg_sources": [],
+     "fl_length": "short",
+     "fl_intent": "compare",
+     "fl_servers": [
+      "Game Trends"
+     ],
+     "fl_grounding": "Verified: steam_trending (25 items), steam_top_sellers (25 ranked), epic_free_games (2 free-now, with end dates) and get_all_trending_games all return data on 2026-10-01. Overlap may legitimately be empty (live data), which the fallback clause covers. Tools take no arguments.",
+     "distraction_servers": []
+    },
+    {
+     "task_id": "syn_game_02",
+     "task_description": "Check Epic's free-game promotion and react to what is there. Perform:\n\n1. Call Game Trends:get_epic_free_games.\n2. For every game with isFreeNow=true, report its name, original price and promotion end date, and compute how many hours remain from the current time to the end date (flag any that end within 24 hours).\n3. Also list any game with isUpcomingFree=true with its start date.\n4. Only if no game is free right now (or the list is empty), call Game Trends:get_epic_trending_games and report the top few titles as a consolation.",
+     "fuzzy_description": "I like grabbing whatever Epic is giving away for free, but I always forget to check until it's too late. Can you see what's free on Epic right now? For each free game I want to know the name, what it would normally cost, and exactly when the giveaway ends, including how many hours I have left. Highlight anything that expires within the next day. If there's something lined up to be free soon, list that too. And if there's nothing free at the moment, then tell me what's trending on Epic instead so the check isn't a total waste of time.",
+     "dependency_analysis": "Inherent Dependencies:\n- The fallback call get_epic_trending_games depends on the result of get_epic_free_games (none free now).\n\nScenario-Based Dependencies:\n1. Conditional: if free-now games exist, the task ends after one call; otherwise a second call is made. Whether the second call happens cannot be known in advance.\n2. Time-remaining computation requires the current date plus the promotionDetails.endDate field.\n\nCross-Server Dependencies:\n- None.",
+     "fl_structure": "conditional",
+     "fl_arg_sources": [],
+     "fl_length": "short",
+     "fl_intent": "monitor",
+     "fl_servers": [
+      "Game Trends"
+     ],
+     "fl_grounding": "Verified get_epic_free_games returns 2 free-now games (Astrea Six Sided Oracles, Mechabellum) with originalPrice, isFreeNow, promotionDetails.endDate (2026-10-01T15:00Z); get_epic_trending_games returns count 0 (fallback would be empty). Live data.",
+     "distraction_servers": [],
+     "fl_realised": "single call in practice (fallback rarely fires)"
+    }
+   ]
+  },
+  {
+   "server_name": "NixOS+Game Trends",
+   "tasks": [
+    {
+     "task_id": "syn_x_01",
+     "task_description": "Plan a NixOS gaming machine and tie it to what is popular right now. Perform:\n\n1. Call Game Trends:get_steam_top_sellers and Game Trends:get_epic_free_games (independent).\n2. Call NixOS:nixos_search with search_type=\"options\", channel=\"stable\" and a query you derive for Steam support (e.g. \"programs.steam\"); from the results pick the master enable option and call NixOS:nixos_info (type=\"option\", channel=\"stable\") on it.\n3. In parallel call NixOS:nixos_info (type=\"package\", channel=\"stable\") for \"lutris\", \"gamemode\" and \"mangohud\".\n4. If get_epic_free_games shows at least one game with isFreeNow=true, call NixOS:nixos_info (type=\"package\", channel=\"stable\") for \"heroic\" (the Epic Games launcher for Linux) so the user can claim the games; otherwise skip.\n5. Report: the NixOS options/packages with versions and a minimal configuration.nix snippet, plus the current top 5 Steam sellers and the free Epic games.",
+     "fuzzy_description": "I'm building a gaming PC that will run NixOS (stable channel) and I want to set it up properly from the start. I'll play on Steam, I like having a performance overlay and something that boosts game performance on demand, and I also want a way to manage non-Steam games. I'd also like to be able to claim the free games Epic hands out each week, if there's anything free right now that is. Can you work out which NixOS options and packages I need, with their versions on stable, and give me a minimal config snippet? While you're at it, tell me what the five best-selling games on Steam are at the moment and what Epic is giving away, so I know what I'll want to try first.",
+     "dependency_analysis": "Inherent Dependencies:\n- nixos_info on the Steam enable option needs the option name returned by the options search.\n- The heroic lookup depends on the Epic free-games result.\n\nScenario-Based Dependencies:\n1. Game Trends calls (top sellers, epic free) and the three package lookups are independent and can run in parallel.\n2. Chain: nixos_search(options, model-derived query) -> nixos_info(option from result).\n3. Conditional: nixos_info(heroic) only if Epic has a free-now game.\n\nCross-Server Dependencies:\n- The Epic free-games result (Game Trends) decides whether a NixOS lookup (heroic) is made.\n- Final report merges both servers' data.",
+     "fl_structure": "mixed",
+     "fl_arg_sources": [
+      "user",
+      "result",
+      "model"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "plan",
+     "fl_servers": [
+      "NixOS",
+      "Game Trends"
+     ],
+     "fl_grounding": "Verified: steam_top_sellers (25 ranked), epic_free_games (2 free now); nixos_search options 'programs.steam' stable -> programs.steam.enable etc.; nixos_info option programs.steam.enable ok; nixos_info lutris 0.5.19, gamemode 1.8.2, mangohud 0.8.2, heroic 2.20.1 on stable.",
+     "distraction_servers": []
+    }
+   ]
+  },
+  {
+   "server_name": "NixOS+OKX Exchange",
+   "tasks": [
+    {
+     "task_id": "syn_x_02",
+     "task_description": "Prepare a NixOS stable dev shell for a small OKX price-alert script and sanity-check the data it will consume. Perform:\n\n1. Call NixOS:nixos_search (search_type=\"packages\", channel=\"stable\") for \"ccxt\" (a multi-exchange trading library).\n2. If nothing is found, retry NixOS:nixos_search for \"ccxt\" with channel=\"unstable\". If that also finds nothing, conclude no ccxt package exists and derive alternative building blocks yourself: call NixOS:nixos_search (stable) for a websocket client library (e.g. \"websockets\") and a data-analysis library (e.g. \"pandas\"). If ccxt was found, skip the alternatives.\n3. Call OKX Exchange:get_price with instrument=\"BTC-USDT\" and OKX Exchange:get_candlesticks with instrument=\"BTC-USDT\", bar=\"1H\", limit=6 (independent of the Nix lookups).\n4. Report what packages are available on which channel (note that Python libraries appear under versioned names such as python3.13-<name>), and summarize the BTC-USDT price and the six hourly closes so the user can see the data format.",
+     "fuzzy_description": "I'm writing a small Python script on NixOS (stable channel preferred) that watches the OKX exchange and pings me when bitcoin moves. I'd like to know what NixOS offers to build it with: ideally an exchange library like ccxt so I'm not hand-rolling the API calls, otherwise whatever lower-level building blocks I'd need for streaming data and number crunching. Separately, I want to see what the exchange data actually looks like before I write any parsing code: the current BTC-USDT price and the last few hourly candles, so I can see the fields and units. Give me a short rundown of the packages and a sample of the data.",
+     "dependency_analysis": "Inherent Dependencies:\n- The unstable ccxt search and the alternative-library searches depend on the stable ccxt search returning nothing.\n\nScenario-Based Dependencies:\n1. Conditional cascade: ccxt(stable) empty -> ccxt(unstable) empty -> search websockets and pandas (model-chosen terms).\n2. The OKX price and candlestick calls are independent of the Nix lookups and can run in parallel with them; bar/limit (1H, 6) are model-derived from 'last few hourly candles'.\n\nCross-Server Dependencies:\n- None are data dependencies; the final report merges Nix package availability with the OKX sample data.",
+     "fl_structure": "mixed",
+     "fl_arg_sources": [
+      "user",
+      "model"
+     ],
+     "fl_length": "medium",
+     "fl_intent": "plan",
+     "fl_servers": [
+      "NixOS",
+      "OKX Exchange"
+     ],
+     "fl_grounding": "Verified: nixos_search 'ccxt' returns no packages on both stable and unstable; 'websockets' and 'pandas' return results on stable (noisy: Haskell/Perl websockets, python3.13-* pandas-related libs rather than pandas itself, so the agent must read results carefully); OKX get_price/get_candlesticks for BTC-USDT work (1H and 1D bars verified).",
+     "distraction_servers": []
+    }
+   ]
+  }
+ ]
+}
