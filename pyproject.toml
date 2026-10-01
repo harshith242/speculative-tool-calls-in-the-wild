@@ -2,7 +2,7 @@
 name = "fastlane"
 version = "0.1.0"
 description = "A live test of speculative programmatic tool calling (spec-ptc) for a code-mode agent on real MCP servers and tau2-bench"
-authors = [{ name = "harshith242", email = "v.harshith2000@gmail.com" }]
+authors = [{ name = "harshith242" }]
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "matplotlib",
