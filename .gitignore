@@ -23,3 +23,5 @@ configs/*smoke*.yaml
 docs/plans/
 docs/results/v1_tau2_first/
 tasks_v2/tool_docs.txt
+docs/codebase-visual-atlas/index.html
+docs/codebase-visual-atlas/ledger.md

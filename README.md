@@ -11,21 +11,35 @@ This repo is a live test of an existing technique, **sPTC (Speculative Programma
 
 ## How it works
 
-**The agent.** It works the way RLM agents do:
+The pictures below are drawn from the code; each label names the file or function it shows.
+
+### 1. The agent: one REPL, tools as functions
+
+![One episode: DeepSeek prints code, Xiaohei runs it on one persistent REPL whose pipes reach the MCP servers; only printed output flies back](docs/codebase-visual-atlas/images/01-episode.png)
+
+The agent works the way RLM agents do:
 - it writes Python in **one persistent REPL per episode**, where every tool is a Python function;
 - only `print` output comes back to it;
 - the model is DeepSeek Flash with thinking off.
 
-**sPTC** is a faithful port of spec-ptc:
+### 2. sPTC: a shadow runs ahead while the model writes
+
+![Left: while DeepSeek is still writing, a dashed shadow copy runs the finished lines and starts their calls; results land on a shelf. Right: when the stream ends, the real REPL takes the waiting results instead of calling again](docs/codebase-visual-atlas/images/02-sptc-shadow.png)
+
+sPTC is a faithful port of spec-ptc:
 - **Shadow:** while the model is still streaming its code, a *shadow* copy of the REPL (a deep-copied snapshot of its variables) runs each finished statement.
 - **Lazy results:** tool calls in the shadow return lazy values. A real call starts immediately, and the shadow only waits when a later line actually uses the value. Independent calls, such as a loop over packages, therefore start together.
-- **Only read-only tools start early.** A write call returns a placeholder, and statements that depend on it are skipped.
-- **When the stream ends,** the real REPL waits for the shadow to finish, then runs the code. Real calls pick up results that are already in flight or already done.
+- **When the stream ends,** the real REPL waits for the shadow to finish, then runs the code. Real calls pick up results that are already in flight or already done. Results nobody claimed are thrown away after each cell (none were, in our live runs).
 
 So speculation never changes what the agent sees or does. It only changes how long it waits.
 
-**Safety:**
+### 3. What may start early
+
+![A gate with a whitelist: a listed read call goes up the tube and starts early; a call not on the list gets an empty placeholder box; a line that reads the box falls into the skip tray; a real write sweeps pending results off the shelf; a fence keeps files and eval out](docs/codebase-visual-atlas/images/03-what-starts-early.png)
+
 - **Whitelist:** only tools on a hand-checked read-only list may start early. The servers' own `readOnlyHint` was unset on every tool.
+- **Placeholders:** any other call in the shadow returns a placeholder instead of running, and statements that read it are skipped.
+- **Writes clear the shelf:** a real call to a non-read tool drops every pending early result, so nothing stale is used after a write.
 - **Hardened REPL:** no file access, no `eval`/`exec`, pure-stdlib imports only. Tool output from public APIs is untrusted; see the Context7 CVE below.
 
 ## Result 1: real tools (MCP-Bench servers), the headline
@@ -46,6 +60,8 @@ So speculation never changes what the agent sees or does. It only changes how lo
 | Failed early starts | — | 3 of 298, all the deliberate "retired ticker" trap that the real call also hits |
 
 **Primary endpoint:** B/A = **0.767**, 95% CI [0.619, 0.967], p = 0.038. In plain words, the agent with sPTC took about 77% as long as without it, so it was roughly 23% faster.
+
+![Each task runs on both arms; each task's B/A ratio is a pebble on a log ruler; the flag marks the geometric mean 0.767 with its 95% range; Xiaohei flips the coin for the sign-flip test](docs/codebase-visual-atlas/images/04-measuring.png)
 
 How to read these numbers:
 - **Primary endpoint.** Before the live runs, the spec named this one number as the test of whether sPTC works, so we could not pick a flattering metric afterwards.
